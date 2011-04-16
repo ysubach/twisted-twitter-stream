@@ -50,6 +50,8 @@ class TweetReceiver(object):
     def disconnect(self):
         if hasattr(self, "_streamProtocol"):
             self._streamProtocol.factory.continueTrying = 0
+            if self._streamProtocol.timeout:
+                self._streamProtocol.timeout.cancel()
             self._streamProtocol.transport.loseConnection()
         else:
             raise RuntimeError("not connected")
@@ -57,6 +59,7 @@ class TweetReceiver(object):
 
 class _TwitterStreamProtocol(basic.LineReceiver):
     delimiter = "\r\n"
+    timeout_sec = 120
 
     def __init__(self):
         self.in_header = True
@@ -68,6 +71,11 @@ class _TwitterStreamProtocol(basic.LineReceiver):
         self.transport.write(self.factory.header)
         self.factory.consumer._registerProtocol(self)
 
+    def reconnect(self):
+        print 'reconnecting...'
+        self.factory.continueTrying = 1
+        self.transport.loseConnection()
+
     def lineReceived(self, line):
         while self.in_header:
             if line:
@@ -77,6 +85,7 @@ class _TwitterStreamProtocol(basic.LineReceiver):
                 status = int(status)
                 if status == 200:
                     self.factory.consumer.connectionMade()
+                    self.timeout = reactor.callLater(self.timeout_sec, self.reconnect)
                 else:
                     self.factory.continueTrying = 0
                     self.transport.loseConnection()
@@ -101,7 +110,7 @@ class _TwitterStreamProtocol(basic.LineReceiver):
         self.status_data += data
         if self.status_size == 0:
             try:
-                # ignore newline keep-alive
+                self.timeout.reset(self.timeout_sec)
                 tweet = _json.loads(self.status_data)
             except:
                 pass
