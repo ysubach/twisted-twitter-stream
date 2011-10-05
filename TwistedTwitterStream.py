@@ -22,7 +22,7 @@ http://apiwiki.twitter.com/Streaming-API-Documentation"""
 
 import base64, urllib
 from twisted.protocols import basic
-from twisted.internet import defer, reactor, protocol
+from twisted.internet import defer, reactor, protocol, ssl
 
 try:
     import simplejson as _json
@@ -154,17 +154,20 @@ class _TwitterStreamFactory(protocol.ReconnectingClientFactory):
 def firehose(username, password, consumer):
     tw = _TwitterStreamFactory(consumer)
     tw.make_header(username, password, "GET", "/1/statuses/firehose.json")
-    reactor.connectTCP("stream.twitter.com", 80, tw)
+    contextFactory = ssl.ClientContextFactory()
+    reactor.connectSSL("stream.twitter.com", 443, tw, contextFactory)
 
 def retweet(username, password, consumer):
     tw = _TwitterStreamFactory(consumer)
     tw.make_header(username, password, "GET", "/1/statuses/retweet.json")
-    reactor.connectTCP("stream.twitter.com", 80, tw)
+    contextFactory = ssl.ClientContextFactory()
+    reactor.connectSSL("stream.twitter.com", 443, tw, contextFactory)
 
 def sample(username, password, consumer):
     tw = _TwitterStreamFactory(consumer)
     tw.make_header(username, password, "GET", "/1/statuses/sample.json")
-    reactor.connectTCP("stream.twitter.com", 80, tw)
+    contextFactory = ssl.ClientContextFactory()
+    reactor.connectSSL("stream.twitter.com", 443, tw, contextFactory)
 
 def filter(username, password, consumer, count=0, delimited=0, track=[], follow=[]):
     qs = []
@@ -182,4 +185,6 @@ def filter(username, password, consumer, count=0, delimited=0, track=[], follow=
 
     tw = _TwitterStreamFactory(consumer)
     tw.make_header(username, password, "POST", "/1/statuses/filter.json", "&".join(qs))
-    reactor.connectTCP("stream.twitter.com", 80, tw)
+    contextFactory = ssl.ClientContextFactory()
+    reactor.connectSSL("stream.twitter.com", 443, tw, contextFactory)
+
